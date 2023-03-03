@@ -1,0 +1,10 @@
+version = 0.1
+[default]
+[default.deploy]
+[default.deploy.parameters]
+stack_name = "test-stack"
+s3_bucket = "devops-asdf"
+s3_prefix = "ghactions-sam-test"
+region = "us-east-1"
+capabilities = "CAPABILITY_IAM"
+image_repositories = []
