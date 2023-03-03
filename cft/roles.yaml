@@ -1,0 +1,351 @@
+---
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "Contains all the Github roles to assume for this repo"
+
+Resources:
+  GitHubStackSetRole:
+    DeletionPolicy: Retain
+    Type: AWS::CloudFormation::CustomResource
+    Properties:
+      ServiceToken: !ImportValue CustomNamedLambda
+      type: AWS::IAM::Role
+      props:
+        RoleName: GitHubStackSetAssumeRole
+        AssumeRolePolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+            Effect: Allow
+            Principal:
+              Federated: !ImportValue GitHubOIDC
+            Action: "sts:AssumeRoleWithWebIdentity"
+            Condition:
+              StringLike:
+                token.actions.githubusercontent.com:sub: repo:ascending-llc/Operation:*
+        Path: "/"
+        Policies:
+          - PolicyName: GitHubStackSetPolicy
+            PolicyDocument:
+              Version: "2012-10-17"
+              Statement:
+                Effect: Allow
+                Action:
+                  - "cloudformation:DescribeStackSet"
+                  - "cloudformation:CreateStackSet"
+                  - "cloudformation:UpdateStackSet"
+                  - "cloudformation:CreateStackInstances"
+                Resource: "*"
+
+  GitHubSAMRole:
+    Type: AWS::CloudFormation::CustomResource
+    DeletionPolicy: Retain
+    Properties:
+      ServiceToken: !ImportValue CustomNamedLambda
+      type: AWS::IAM::Role
+      props:
+        RoleName: GitHubSAMAssumeRole
+        AssumeRolePolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+            Effect: Allow
+            Principal:
+              Federated: !ImportValue GitHubOIDC
+            Action: "sts:AssumeRoleWithWebIdentity"
+            Condition:
+              StringLike:
+                token.actions.githubusercontent.com:sub: repo:ascending-llc/Operation:*
+        Path: "/"
+        Policies:
+          - PolicyName: GitHubSAMPolicy
+            PolicyDocument:
+              Version: "2012-10-17"
+              Statement:
+                Effect: Allow
+                Action:
+                  - "cloudformation:CreateStack"
+                  - "cloudformation:UpdateStack"
+                  - "cloudformation:DeleteStack"
+                  - "cloudformation:DescribeStacks"
+                  - "cloudformation:GetTemplate"
+                  - "cloudformation:CreateChangeSet"
+                  - "cloudformation:ExecuteChangeSet"
+                  - "cloudformation:DescribeChangeset"
+                  - "s3:GetObject"
+                  - "s3:PutObject"
+                  - "s3:ListBucket"
+                  - "s3:DeleteObject"
+                  - "cloudformation:GetTemplateSummary"
+                Resource: "*"
+          - PolicyName: AccountFactoryDeployPolicy
+            PolicyDocument:
+              Version: "2012-10-17"
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - "lambda:CreateFunction"
+                    - "lambda:UpdateFunctionCode"
+                    - "lambda:UpdateFunctionConfiguration"
+                    - "lambda:GetFunctionConfiguration"
+                    - "lambda:PublishVersion"
+                    - "lambda:GetAlias"
+                  Resource: "*"
+                - Effect: Allow
+                  Action:
+                    - "iam:CreateRole"
+                    - "iam:GetRole"
+                    - "iam:PassRole"
+                    - "iam:PutRolePolicy"
+                  Resource: "*"
+                - Effect: Allow
+                  Action:
+                    - "logs:CreateLogGroup"
+                    - "logs:CreateLogStream"
+                    - "logs:PutLogEvents"
+                  Resource: "*"
+                - Effect: Allow
+                  Action:
+                    - "cloudformation:ListStackInstances"
+                  Resource: "*"
+                - Effect: Allow
+                  Action:
+                    - "organizations:DescribeOrganizationalUnit"
+                    - "organizations:CreateAccount"
+                    - "organizations:CreateOrganizationalUnit"
+                    - "organizations:AttachPolicy"
+                    - "organizations:MoveAccount"
+                    - "organizations:DescribeCreateAccountStatus"
+                    - "organizations:ListOrganizationalUnitsForParent"
+                    - "sts:GetCallerIdentity"
+                  Resource: "*"
+                - Effect: Allow
+                  Action:
+                    - "ec2:DescribeRegions"
+                  Resource: "*"
+          - PolicyName: EC2DetectorDeployPolicy
+            PolicyDocument:
+              Version: "2012-10-17"
+              Statement:
+                - Sid: "ECRRepoAccess"
+                  Effect: "Allow"
+                  Action:
+                    - "ecr:BatchGetImage"
+                    - "ecr:GetDownloadUrlForLayer"
+                  Resource: "arn:aws:ecr:*:*:repository/ec2-detector-stackset"
+                  Condition:
+                    StringEquals:
+                      "aws:PrincipalOrgId": "o-4rvlfjdv0b"
+                - Sid: "LambdaAccess"
+                  Effect: "Allow"
+                  Action:
+                    - "ecr:BatchGetImage"
+                    - "ecr:GetDownloadUrlForLayer"
+                    - "logs:CreateLogStream"
+                    - "logs:PutLogEvents"
+                    - "sns:Publish"
+                    - "lambda:InvokeFunction"
+                    - "ec2:CreateTags"
+                    - "ec2:DescribeInstances"
+                  Resource: "*"
+                - Sid: "S3Access"
+                  Effect: "Allow"
+                  Action:
+                    - "s3:GetBucketAcl"
+                    - "s3:PutObject"
+                  Resource: "*"
+          - PolicyName: SuspendedOuDeployPolicy
+            PolicyDocument:
+              Version: "2012-10-17"
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - s3:GetObject
+                    - s3:ListBucket
+                  Resource:
+                    - arn:aws:s3:::ascending-devops/*
+                    - arn:aws:s3:::ascending-devops
+                - Effect: Allow
+                  Action:
+                    - iam:CreateRole
+                    - iam:PutRolePolicy
+                    - iam:PassRole
+                    - iam:GetRole
+                    - iam:DeleteRole
+                    - iam:DetachRolePolicy
+                  Resource: "arn:aws:iam::595312265488:role/LambdaRole"
+                - Effect: Allow
+                  Action:
+                    - lambda:CreateFunction
+                    - lambda:UpdateFunctionCode
+                    - lambda:UpdateFunctionConfiguration
+                    - lambda:GetFunction
+                    - lambda:AddPermission
+                    - lambda:RemovePermission
+                  Resource: arn:aws:lambda:us-east-1:595312265488:function:SuspendedOuCheck
+                - Effect: Allow
+                  Action:
+                    - organizations:ListAccountsForParent
+                    - lambda:InvokeFunction
+                    - logs:CreateLogGroup
+                    - logs:CreateLogStream
+                    - logs:PutLogEvents
+                    - organizations:CloseAccount
+                  Resource: "*"
+
+  GitHubCFTRole:
+    Type: AWS::CloudFormation::CustomResource
+    DeletionPolicy: Retain
+    Properties:
+      ServiceToken: !ImportValue CustomNamedLambda
+      type: AWS::IAM::Role
+      props:
+        RoleName: GitHubCloudFormationAssumeRole
+        AssumeRolePolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+            Effect: Allow
+            Principal:
+              Federated: !ImportValue GitHubOIDC
+            Action: "sts:AssumeRoleWithWebIdentity"
+            Condition:
+              StringLike:
+                token.actions.githubusercontent.com:sub: repo:ascending-llc/Operation:*
+        Path: "/"
+        Policies:
+          - PolicyName: GitHubS3Perms
+            PolicyDocument:
+              Version: "2012-10-17"
+              Statement:
+                Effect: Allow
+                Action:
+                  - "s3:GetObject"
+                  - "s3:PutObject"
+                  - "s3:ListBucket"
+                Resource: "arn:aws:s3:::ascending-devops"
+          - PolicyName: GitHubDeployPolicy
+            PolicyDocument:
+              Version: "2012-10-17"
+              Statement:
+                Effect: Allow
+                Action:
+                  - "cloudformation:CreateStack"
+                  - "cloudformation:DescribeStacks"
+                  - "cloudformation:UpdateStack"
+                  - "cloudformation:DescribeStackEvents"
+                  - "cloudformation:GetTemplate"
+                  - "cloudformation:DeleteStack"
+                Resource: "*"
+          - PolicyName: GitHubControlTowerPolicy
+
+            PolicyDocument:
+              Version: "2012-10-17"
+              Statement:
+                Effect: Allow
+                Action:
+                  - controltower:CreateManagedAccount
+                  - controltower:UpdateManagedAccount
+                  - controltower:DeleteManagedAccount
+                  - controltower:ListManagedAccounts
+                  - controltower:DescribeManagedAccount
+                  - controltower:CreateControl
+                  - controltower:UpdateControl
+                  - controltower:DeleteControl
+                  - controltower:DescribeControl
+                  - controltower:ListEnabledControls
+                  - controltower:ListAvailableControls
+                  - controltower:UpdateControlStatus
+                  - controltower:CreateGuardrail
+                  - controltower:UpdateGuardrail
+                  - controltower:DeleteGuardrail
+                  - controltower:DescribeGuardrail
+                  - controltower:ListGuardrails
+                  - controltower:GetHomeRegion
+                  - controltower:GetLifecycleEvents
+                Resource: "*"
+          - PolicyName: GitHubEksPolicy
+            PolicyDocument:
+              Version: "2012-10-17"
+              Statement:
+                Effect: Allow
+                Action:
+                  - ec2:CreateInternetGateway
+                  - ec2:CreateNatGateway
+                  - ec2:CreateRoute
+                  - ec2:CreateRouteTable
+                  - ec2:CreateSubnet
+                  - ec2:CreateVpc
+                  - ec2:CreateVpcEndpoint
+                  - ec2:Describe*
+                  - ec2:AttachInternetGateway
+                  - ec2:CreateNetworkInterface
+                  - ec2:CreateSecurityGroup
+                  - ec2:CreateTags
+                  - ec2:ModifySubnetAttribute
+                  - ec2:ModifyVpcAttribute
+                  - ec2:AllocateAddress
+                  - ec2:AssociateAddress
+                  - ec2:ReleaseAddress
+                Resource: "*"
+          - PolicyName: GitHubSecurityPolicy
+            PolicyDocument:
+              Version: "2012-10-17"
+              Statement:
+                - Sid: CloudFormationDeploy
+                  Effect: Allow
+                  Action:
+                    - cloudformation:CreateStack
+                    - cloudformation:UpdateStack
+                    - cloudformation:DeleteStack
+                    - cloudformation:CreateChangeSet
+                    - cloudformation:DescribeChangeSet
+                    - cloudformation:ExecuteChangeSet
+                    - cloudformation:DescribeStackEvents
+                    - cloudformation:DescribeStacks
+                    - cloudformation:GetTemplate
+                    - cloudformation:SetStackPolicy
+                    - cloudformation:ValidateTemplate
+                  Resource: "*"
+                - Sid: EC2SecurityGroups
+                  Effect: Allow
+                  Action:
+                    - ec2:CreateSecurityGroup
+                    - ec2:DeleteSecurityGroup
+                    - ec2:AuthorizeSecurityGroupIngress
+                    - ec2:DescribeSecurityGroups
+                    - ec2:RevokeSecurityGroupIngress
+                    - ec2:AuthorizeSecurityGroupEgress
+                    - ec2:RevokeSecurityGroupEgress
+                  Resource: "*"
+                - Sid: IAMPermissions
+                  Effect: Allow
+                  Action:
+                    - iam:CreateRole
+                    - iam:PutRolePolicy
+                    - iam:DeleteRole
+                    - iam:DeleteRolePolicy
+                    - iam:GetRole
+                    - iam:GetRolePolicy
+                    - iam:PassRole
+                    - iam:CreateInstanceProfile
+                    - iam:AddRoleToInstanceProfile
+                    - iam:RemoveRoleFromInstanceProfile
+                    - iam:DeleteInstanceProfile
+                  Resource: "*"
+          - PolicyName: GitHubPermissionSetPolicy
+            PolicyDocument:
+              Version: "2012-10-17"
+              Statement:
+                Effect: Allow
+                Action:
+                  - "sso:CreatePermissionSet"
+                  - "sso:TagResource"
+                  - "sso:AssociatePermissionSet"
+                  - "sso:CreateManagedPolicyAttachment"
+                  - "sso:PutInstanceAccesssControlAttributeConfiguration"
+                Resource: "*"
+
+Outputs:
+  CftRole:
+    Value: !GetAtt GitHubCFTRole.Arn
+  SamRole:
+    Value: !GetAtt GitHubSAMRole.Arn
+  StackSetRole:
+    Value: !GetAtt GitHubStackSetRole.Arn

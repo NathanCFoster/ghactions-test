@@ -3,10 +3,10 @@ name: "Update sam templates on pushes to the main branch"
 on:
   push:
     branches:
-      - master
+      - main
 
 jobs:
-  buildaccount:
+  build:
     runs-on: ubuntu-latest
     permissions:
       id-token: write
@@ -18,5 +18,5 @@ jobs:
         uses: ascending-llc/actions/sam@main
         with:
           python_v: '3.9'
-          location: ./cft/sam/account_factory
-          role_to_assume: arn:aws:iam::595312265488:role/GitHubSAMAssumeRole
+          location: ./
+          role_to_assume: ${{ secrets.sam_role }}

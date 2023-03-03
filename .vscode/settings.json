@@ -1,5 +1,6 @@
 {
     "yaml.schemas": {
-        "https://raw.githubusercontent.com/aws/serverless-application-model/main/samtranslator/schema/schema.json": "file:///Users/nfoster/Documents/tmp/template.yaml"
+        "https://raw.githubusercontent.com/aws/serverless-application-model/main/samtranslator/schema/schema.json": "file:///Users/nfoster/Documents/tmp/template.yaml",
+        "https://json.schemastore.org/github-workflow.json": "file:///Users/nfoster/Documents/tmp/.github/workflows/sam.yml"
     }
 }
