@@ -12,11 +12,6 @@ jobs:
       id-token: write
       contents: read
     steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-      - name: Update SAM Template
-        uses: ascending-llc/actions/sam@main
-        with:
-          python_v: '3.9'
-          location: ./
-          role_to_assume: ${{ secrets.sam_role }}
+      - name: Echo Branch Name
+        shell: bash
+        run: echo ${{ env.GITHUB_REF_NAME }}
